@@ -3,6 +3,15 @@
 #include <EEPROM.h>
 #include <FS.h>  
 #include <WiFiUdp.h>
+
+//定义使用的引脚
+#define RSTSIG 2
+#define SIGNAL 4
+#define RESETP 5
+
+//重置计数器
+int count=0;
+
 //提供设置连接用的服务器
 ESP8266WebServer httpServer;
 
@@ -73,7 +82,10 @@ void handleNotFound() {
 }
 
 void setup() {
-  pinMode(4, OUTPUT);
+  pinMode(RSTSIG, OUTPUT);
+  pinMode(SIGNAL, OUTPUT);
+  pinMode(RESETP, INPUT_PULLUP);
+  digitalWrite(RSTSIG, LOW);
   Serial.begin(115200);
   SPIFFS.begin();  
   EEPROM.begin(512);
@@ -98,6 +110,7 @@ void setup() {
   connectWiFi();
 
   //显示连接成功的信息
+  digitalWrite(RSTSIG, HIGH);
   Serial.println("Connected!");
   Serial.print("IP: ");
   Serial.print(WiFi.localIP());
@@ -143,7 +156,7 @@ void resetWifi(){
   Serial.print("All networks: ");
   Serial.println(networks);
   //创建Option标签供用户选择
-  String htmlList = "<select name='ssid'><option value='' disabled selected>热点名称</option>";
+  String htmlList = "<select id='ssid'><option value='' disabled selected>ホットスポットの名</option>";
   for(int i = 0;i<networks;i++){
     String scanSSID = WiFi.SSID(i);
     int scanRSSI = WiFi.RSSI(i);
@@ -162,24 +175,31 @@ void resetWifi(){
   Serial.println(WiFi.softAPIP());
   bool setup = true;
   //以HTML方式显示WiFi和设置信息
-  html = "<html><head><title>WiFi Configuration</title><meta http-equiv='Content-Type' content='text/html;charset=utf-8'><link type='text/css' rel='stylesheet' href='materialize.min.css' media='screen,projection'/><link type='text/css' rel='stylesheet' href='customize.css' media='screen,projection'/></head><body>";
-  html+= "<form method='get' action='setup' class='z-depth-3 grey lighten-5'><div class='row'><div class='input-field col s12'>";
+  html = "<html><head><title>WiFi コンフィギュレーション</title><meta http-equiv='Content-Type' content='text/html;charset=utf-8'><link type='text/css' rel='stylesheet' href='materialize.min.css' media='screen,projection'/><link type='text/css' rel='stylesheet' href='customize.css' media='screen,projection'/></head><body>";
+  html+= "<form method='get' action='setup' class='z-depth-3 grey lighten-5'><div class='container'><div class='row'><div class='input-field col s12'><center><h4>Wi-Fi初期化設定</h4></center></div><div class='input-field col s12'>";
   html+= htmlList;
-  html+="</div><div class='input-field col s12'><label>热点密码:</label><input name='code' length=64 type='text' /></div>";
-  html+="<center><input class='waves-effect waves-green btn-flat submit' type='submit' value='立即连接' /></center></div>";
-  html+="</form><script type='text/javascript' src='jquery.min.js'></script><script type='text/javascript' src='materialize.min.js'></script><script type='text/javascript'>$(document).ready(function() {$('select').material_select();});</script></body></html>";
+  html+="</div><div class='input-field col s12'><label>ホットスポットのパスワード</label><input id='code' length=64 type='text' /></div>";
+  html+="<center><a class='waves-effect waves-green btn-flat submit' onclick='updateWiFi()'>今すぐ接続する！</a></center></div>";
+  html+="</div></form><div id='modal1' class='modal modal-fixed-footer'><div class='modal-content'><h4>通知</h4><p>青色の点滅後にリセットボタンを押す</p></div><div class='modal-footer'><a href='#!' class='modal-action modal-close waves-effect waves-green btn-flat'>理解する</a></div></div><script type='text/javascript' src='jquery.min.js'></script><script type='text/javascript' src='materialize.min.js'></script><script type='text/javascript'>$(document).ready(function(){$('.modal').modal();$('select').material_select();});function updateWiFi(){$.get('setup', { ssid: $('#ssid').val(), code: $('#code').val()} );$('#modal1').modal('open');};</script></body></html>";
   //激活HTTP服务器
   httpServer.on("/",[](){
     Serial.println("Configuration Page");
     httpServer.send(200,"text/html",html);
   });
+  //提示可以进行设置了
+  digitalWrite(RSTSIG, HIGH);
+  delay(200);
+  digitalWrite(RSTSIG, LOW);
+  delay(200);
+  digitalWrite(RSTSIG, HIGH);
   //接受设置数据
   httpServer.on("/setup",[](){
     String setupSSID = httpServer.arg("ssid");
     String setupcode = httpServer.arg("code");
-    Serial.print("\nSSID e code definidos\nSSID: ");
+    httpServer.send(200,"text/html","{'status':'OK'}");
+    Serial.print("\nWrite SSID&Password\nSSID: ");
     Serial.println(setupSSID);
-    Serial.print("code: \n");
+    Serial.print("CODE: \n");
     Serial.println(setupcode);
     //重置EEPROM内存数据
     for(int i=0;i<96;i++){
@@ -197,8 +217,14 @@ void resetWifi(){
     //将修改内容保存进EEPROM
     EEPROM.commit();
     Serial.println("Data saved!");
-    //重置开发板
-    ESP.reset();
+    //重置开发板提示
+    while(1){
+      digitalWrite(RSTSIG, LOW);
+      delay(200);
+      digitalWrite(RSTSIG, HIGH);
+      delay(200);
+    }
+    //ESP.reset();
   });
   //寻找资源或返回404
   httpServer.onNotFound(handleNotFound);
@@ -223,9 +249,9 @@ void loop() {
 
       if (strcmp(incomingPacket, "Unlock") == 0) // 如果收到Turn off
       {
-        digitalWrite(4, HIGH);
+        digitalWrite(SIGNAL, HIGH);
         delay(100);
-        digitalWrite(4, LOW);
+        digitalWrite(SIGNAL, LOW);
         Udp.beginPacket(Udp.remoteIP(), Udp.remotePort());
         Udp.write("Door has opened!"); // 回复LED has been turn off
         Udp.endPacket();
@@ -236,6 +262,16 @@ void loop() {
         Udp.write("Data Error!"); // 回复Data Error!
         Udp.endPacket();
       }
+    }
+  }
+  else if (digitalRead(RESETP)==0)
+  {
+    delay(50);
+    if (count==0)
+    {
+      Serial.printf("Reset Wi-Fi Event Detected!");
+      count++;
+      resetWifi();
     }
   }
 }
