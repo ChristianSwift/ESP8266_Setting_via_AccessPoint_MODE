@@ -176,11 +176,11 @@ void resetWifi(){
   bool setup = true;
   //以HTML方式显示WiFi和设置信息
   html = "<html><head><title>WiFi コンフィギュレーション</title><meta http-equiv='Content-Type' content='text/html;charset=utf-8'><link type='text/css' rel='stylesheet' href='materialize.min.css' media='screen,projection'/><link type='text/css' rel='stylesheet' href='customize.css' media='screen,projection'/></head><body>";
-  html+= "<form method='get' action='setup' class='z-depth-3 grey lighten-5'><div class='container'><div class='row'><div class='input-field col s12'><center><h4>Wi-Fi初期化設定</h4></center></div><div class='input-field col s12'>";
+  html+= "<form method='get' action='setup' class='z-depth-3 grey lighten-5'><div class='container'><div class='row'><div class='input-field col s12'><center><h4>デジタルドアロック<br>Wi-Fi初期化設定</h4></center></div><div class='input-field col s12'>";
   html+= htmlList;
   html+="</div><div class='input-field col s12'><label>ホットスポットのパスワード</label><input id='code' length=64 type='text' /></div>";
   html+="<center><a class='waves-effect waves-green btn-flat submit' onclick='updateWiFi()'>今すぐ接続する！</a></center></div>";
-  html+="</div></form><div id='modal1' class='modal modal-fixed-footer'><div class='modal-content'><h4>通知</h4><p>青色の点滅後にリセットボタンを押す</p></div><div class='modal-footer'><a href='#!' class='modal-action modal-close waves-effect waves-green btn-flat'>理解する</a></div></div><script type='text/javascript' src='jquery.min.js'></script><script type='text/javascript' src='materialize.min.js'></script><script type='text/javascript'>$(document).ready(function(){$('.modal').modal();$('select').material_select();});function updateWiFi(){$.get('setup', { ssid: $('#ssid').val(), code: $('#code').val()} );$('#modal1').modal('open');};</script></body></html>";
+  html+="</div></form><div id='modal1' class='modal'><div class='modal-content'><h4>通知</h4><p>青色の点滅後にリセットボタンを押す</p></div><div class='modal-footer'><a href='#!' class='modal-action modal-close waves-effect waves-green btn-flat'>理解する</a></div></div><script type='text/javascript' src='jquery.min.js'></script><script type='text/javascript' src='materialize.min.js'></script><script type='text/javascript'>$(document).ready(function(){$('.modal').modal({starting_top: '40%',ending_top: '40%'});$('select').material_select();});function updateWiFi(){$.get('setup', { ssid: $('#ssid').val(), code: $('#code').val()} );$('#modal1').modal('open');};</script></body></html>";
   //激活HTTP服务器
   httpServer.on("/",[](){
     Serial.println("Configuration Page");
