@@ -1,4 +1,5 @@
 #include <ESP8266WiFi.h>
+#include <DNSServer.h>
 #include <ESP8266WebServer.h>
 #include <EEPROM.h>
 #include <FS.h>  
@@ -11,6 +12,10 @@
 
 //重置计数器
 int count=0;
+
+//创建DNS
+DNSServer dnsServer;
+IPAddress GetwayIP(192, 168, 4, 1);
 
 //提供设置连接用的服务器
 ESP8266WebServer httpServer;
@@ -148,6 +153,12 @@ void connectWiFi(){
 //配置Wi-Fi信息的方法
 void resetWifi(){
   Serial.print("\nInitial Setting!\n");
+  //创建DNS服务器
+  Serial.print("\nInitial DNS Server!");
+  dnsServer.setTTL(300);
+  dnsServer.setErrorReplyCode(DNSReplyCode::ServerFailure);
+  dnsServer.start(53, "set.wifi", GetwayIP);
+  //设置Wi-Fi
   WiFi.mode(WIFI_STA);
   WiFi.disconnect();
   delay(100);
@@ -229,6 +240,7 @@ void resetWifi(){
   httpServer.begin();
   //进入循环
   while(setup){
+    dnsServer.processNextRequest();
     httpServer.handleClient();
   }
 }
